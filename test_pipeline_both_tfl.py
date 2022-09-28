@@ -17,7 +17,6 @@ CLASSIFIER_FILENAME = '/meccano/meccano_real_en4.tflite'
 DETECTOR_NAME = '/meccano/meccano_efficientdet_classes.tflite'
 DATASET_PATH = '/meccano/test_data.tfrecord'
 THRESHOLD = 0.4
-LABELS = ['back', 'front', 'fronttwo', 'full', 'mid']
 
 IMAGE_FEATURE_DESCRIPTION = {
     'image/encoded': tf.io.FixedLenFeature([], tf.string),
@@ -25,6 +24,8 @@ IMAGE_FEATURE_DESCRIPTION = {
 }
 
 def main():
+    base_options = core.BaseOptions(
+        file_name=CLASSIFIER_FILENAME, use_coral=False, num_threads=8)
     classification_options = processor.ClassificationOptions(
         max_results=1, score_threshold=THRESHOLD)
     options = vision.ImageClassifierOptions(
