@@ -1,18 +1,27 @@
 package com.example.tfltest;
 
+import static android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION;
+
+import android.Manifest;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.RectF;
+import android.net.Uri;
 import android.os.Bundle;
 
 import com.google.android.material.snackbar.Snackbar;
 
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Environment;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.view.View;
 
+import androidx.core.content.ContextCompat;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
 import androidx.navigation.ui.AppBarConfiguration;
@@ -70,6 +79,20 @@ public class MainActivity extends AppCompatActivity {
                         .setAction("Action", null).show();
             }
         });
+
+        // Request ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION on Vuzix Blade 2
+        if (!Environment.isExternalStorageManager()) {
+            Intent intent = new Intent(ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                    Uri.parse("package:" + BuildConfig.APPLICATION_ID));
+            startActivity(intent);
+        }
+
+        // Request READ_EXTERNAL_STORAGE on ODG and Google Glass
+//        int permission = ContextCompat.checkSelfPermission(
+//                this, Manifest.permission.READ_EXTERNAL_STORAGE);
+//        if (permission != PackageManager.PERMISSION_GRANTED) {
+//            requestPermissions(new String[] {Manifest.permission.READ_EXTERNAL_STORAGE}, 0);
+//        }
 
         pool = Executors.newFixedThreadPool(1);
         pool.execute(() -> {

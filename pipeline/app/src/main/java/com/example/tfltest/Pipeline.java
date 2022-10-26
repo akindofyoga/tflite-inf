@@ -8,6 +8,7 @@ import android.os.SystemClock;
 
 import org.tensorflow.lite.support.image.ImageProcessor;
 import org.tensorflow.lite.support.image.TensorImage;
+import org.tensorflow.lite.support.label.Category;
 import org.tensorflow.lite.task.core.BaseOptions;
 import org.tensorflow.lite.task.vision.classifier.Classifications;
 import org.tensorflow.lite.task.vision.classifier.ImageClassifier;
@@ -37,10 +38,10 @@ public class Pipeline {
             
             // Works on Google Glass even though 
             // (new CompatibilityList()).isDelegateSupportedOnThisDevice() returns false.
-            baseOptionsBuilder.useGpu();
+            //baseOptionsBuilder.useGpu();
 
             optionsBuilder.setBaseOptions(baseOptionsBuilder.build());
-            File modelFile = new File("/sdcard/tflite_models/stirling_r50.tflite");
+            File modelFile = new File("/sdcard/models/stirling/r50.tflite");
 
             imageClassifier = ImageClassifier.createFromFileAndOptions(
                     modelFile, optionsBuilder.build());
@@ -64,7 +65,7 @@ public class Pipeline {
             
             optionsBuilder.setBaseOptions(baseOptionsBuilder.build());
 
-            File modelFile = new File("/sdcard/tflite_models/sitrling_all_classes.tflite");
+            File modelFile = new File("/sdcard/models/stirling/ed0.tflite");
             objectDetector = ObjectDetector.createFromFileAndOptions(
                     modelFile, optionsBuilder.build());
         } catch (IOException e) {
@@ -93,7 +94,8 @@ public class Pipeline {
                 }
 
                 count++;
-                if (count == 200) {
+                System.out.println(count);
+                if (count == 20) {
                     long end = SystemClock.uptimeMillis();
                     System.out.println(end - start);
                     System.out.println("Good: " + good + " Bad: " + bad);
@@ -119,10 +121,22 @@ public class Pipeline {
         }
         RectF rectF = detections.get(0).getBoundingBox();
 
-        if ((rectF.bottom < 0) || (rectF.top < 0) || (rectF.width() == 0) ||
+        if ((rectF.top < 0) || (rectF.left < 0) || (rectF.width() == 0) ||
                 (rectF.height() == 0)) {
             return false;
         }
+
+        if ((rectF.left + rectF.width()) > image.getWidth()) {
+            System.out.println("bad");
+            return false;
+        }
+//        List<Category> dets = detections.get(0).getCategories();
+//
+//        if (dets.size() == 0) {
+//            return false;
+//        }
+//
+//        return dets.get(0).getLabel().equals(correctClass);
 
         image = Bitmap.createBitmap(image, (int)rectF.left, (int)rectF.top,
                 (int)rectF.width(), (int)rectF.height());
