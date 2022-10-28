@@ -10,10 +10,10 @@ android {
         applicationId "com.example.tfltest"
 
         // Use 23 for ODG
-        // minSdk 23
+        minSdk 23
 
         // Use 30 for Vuzix
-        minSdk 30
+        // minSdk 30
 
         targetSdk 32
         versionCode 1

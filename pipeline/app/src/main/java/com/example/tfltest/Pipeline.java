@@ -3,6 +3,7 @@ package com.example.tfltest;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.RectF;
+import android.os.BatteryManager;
 import android.os.Environment;
 import android.os.SystemClock;
 
@@ -19,6 +20,8 @@ import org.tensorflow.lite.gpu.CompatibilityList;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
 
@@ -38,7 +41,7 @@ public class Pipeline {
             
             // Works on Google Glass even though 
             // (new CompatibilityList()).isDelegateSupportedOnThisDevice() returns false.
-            //baseOptionsBuilder.useGpu();
+            baseOptionsBuilder.useGpu();
 
             optionsBuilder.setBaseOptions(baseOptionsBuilder.build());
             File modelFile = new File("/sdcard/models/stirling/r50.tflite");
@@ -59,9 +62,9 @@ public class Pipeline {
 
             // This check is necessary because baseOptionsBuilder.useGpu(); will not work on Google
             // glass.
-            if ((new CompatibilityList()).isDelegateSupportedOnThisDevice()) {
+            //if ((new CompatibilityList()).isDelegateSupportedOnThisDevice()) {
                 baseOptionsBuilder.useGpu();
-            }
+            //}
             
             optionsBuilder.setBaseOptions(baseOptionsBuilder.build());
 
@@ -73,9 +76,16 @@ public class Pipeline {
         }
     }
 
-    public void runTest() {
+    public void runTest(BatteryManager batteryManager) {
         int good = 0;
         int bad = 0;
+
+        FileOutputStream fos = null;
+        try {
+            fos = new FileOutputStream("/sdcard/output/stirling/" + System.currentTimeMillis() + ".txt");
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
 
         classifyImage("/sdcard/test_images/stirling/1screw/2_frame-0000.jpg", "warmup");
         System.out.println("Finished warmup");
@@ -84,6 +94,8 @@ public class Pipeline {
                 + "/test_images/stirling");
         int count = 0;
         long start = SystemClock.uptimeMillis();
+        long startEnergy = batteryManager.getLongProperty(
+                BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER);
         for (File classDir : testImages.listFiles()) {
             String correctClass = classDir.getName();
             for (File imageFile : classDir.listFiles()) {
@@ -94,15 +106,35 @@ public class Pipeline {
                 }
 
                 count++;
-                System.out.println(count);
-                if (count == 20) {
+                if (count == 200) {
                     long end = SystemClock.uptimeMillis();
-                    System.out.println(end - start);
+                    System.out.println("time change" + (end - start) + "ms");
+
+                    long endEnergy = batteryManager.getLongProperty(
+                            BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER);
+                    System.out.println("energy: " + endEnergy);
+                    System.out.println("energy change: " + (endEnergy - startEnergy) + "nWh");
+
+                    try {
+                        fos.write(("time change: " + (end - start) + "s energy change: " + (startEnergy - endEnergy) + " nWh\n").getBytes());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
                     System.out.println("Good: " + good + " Bad: " + bad);
                     count = 0;
                     start = SystemClock.uptimeMillis();
+
+                    startEnergy = batteryManager.getLongProperty(
+                            BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER);
                 }
             }
+        }
+        try {
+            fos.write(("Good: " + good + " Bad: " + bad + "\n").getBytes());
+            fos.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
         System.out.println("Good: " + good + " Bad: " + bad);
     }

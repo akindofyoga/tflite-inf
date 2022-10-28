@@ -3,12 +3,16 @@ package com.example.tfltest;
 import static android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.RectF;
 import android.net.Uri;
+import android.os.BatteryManager;
 import android.os.Bundle;
 
 import com.google.android.material.snackbar.Snackbar;
@@ -58,6 +62,8 @@ public class MainActivity extends AppCompatActivity {
 
     private ExecutorService pool;
 
+    private volatile boolean running;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -81,24 +87,74 @@ public class MainActivity extends AppCompatActivity {
         });
 
         // Request ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION on Vuzix Blade 2
-        if (!Environment.isExternalStorageManager()) {
-            Intent intent = new Intent(ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                    Uri.parse("package:" + BuildConfig.APPLICATION_ID));
-            startActivity(intent);
-        }
-
-        // Request READ_EXTERNAL_STORAGE on ODG and Google Glass
-//        int permission = ContextCompat.checkSelfPermission(
-//                this, Manifest.permission.READ_EXTERNAL_STORAGE);
-//        if (permission != PackageManager.PERMISSION_GRANTED) {
-//            requestPermissions(new String[] {Manifest.permission.READ_EXTERNAL_STORAGE}, 0);
+//        if (!Environment.isExternalStorageManager()) {
+//            Intent intent = new Intent(ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+//                    Uri.parse("package:" + BuildConfig.APPLICATION_ID));
+//            startActivity(intent);
 //        }
 
-        pool = Executors.newFixedThreadPool(1);
+        // Request READ_EXTERNAL_STORAGE on ODG and Google Glass
+        int permission1 = ContextCompat.checkSelfPermission(
+                this, Manifest.permission.READ_EXTERNAL_STORAGE);
+        int permission2 = ContextCompat.checkSelfPermission(
+                this, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+        if ((permission1 != PackageManager.PERMISSION_GRANTED) ||
+                (permission2 != PackageManager.PERMISSION_GRANTED)) {
+            requestPermissions(new String[] {Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE}, 0);
+        }
+
+        pool = Executors.newFixedThreadPool(2);
+        running = true;
         pool.execute(() -> {
+            BatteryManager batteryManager =
+                    (BatteryManager) getSystemService(Context.BATTERY_SERVICE);
             Pipeline pipeline = new Pipeline();
-            pipeline.runTest();
+            pipeline.runTest(batteryManager);
+            running = false;
         });
+        pool.execute(() -> {
+            BatteryManager batteryManager =
+                    (BatteryManager) getSystemService(Context.BATTERY_SERVICE);
+            try {
+                FileOutputStream fos = new FileOutputStream("/sdcard/output/bg_thread/" + System.currentTimeMillis() + ".txt");
+                BatteryReceiver batteryReceiver = new BatteryReceiver();
+                while (running) {
+                    long start = SystemClock.uptimeMillis();
+                    IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+                    registerReceiver(batteryReceiver, intentFilter);
+
+                    long toWait = Math.max(0, ((start + 1000) - SystemClock.uptimeMillis()));
+                    Thread.sleep(toWait);
+
+                    if (!running) {
+                        break;
+                    }
+                    int current = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW);
+                    int voltage = batteryReceiver.getVoltage();
+                    fos.write(("current: " + current + " voltage: " + voltage +"\n").getBytes());
+                }
+                fos.close();
+                unregisterReceiver(batteryReceiver);
+                finish();
+            } catch (InterruptedException | IOException e) {
+                e.printStackTrace();
+                    System.exit(0);
+            }
+        });
+    }
+
+    private class BatteryReceiver extends BroadcastReceiver {
+        private int voltage;
+
+        private int getVoltage() {
+            return voltage;
+        }
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            voltage = intent.getIntExtra(BatteryManager.EXTRA_VOLTAGE, Integer.MIN_VALUE);
+        }
     }
 
     @Override
