@@ -107,16 +107,13 @@ public class Pipeline {
 //                } else {
 //                    bad++;
 //                }
-                try {
-                    Bitmap image = BitmapFactory.decodeFile(imageFile.getPath());
-                    ImageProcessor imageProcessor = (new ImageProcessor.Builder()).build();
-                    TensorImage tensorImage = imageProcessor.process(TensorImage.fromBitmap(image));
-                    System.out.println(tensorImage.hashCode());
 
-                    Thread.sleep(400);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+                Bitmap image = BitmapFactory.decodeFile(imageFile.getPath());
+                ImageProcessor imageProcessor = (new ImageProcessor.Builder()).build();
+                TensorImage tensorImage = imageProcessor.process(TensorImage.fromBitmap(image));
+                System.out.println(tensorImage.hashCode());
+
+
 
                 count++;
                 if (count == 200) {
