@@ -62,9 +62,9 @@ public class Pipeline {
 
             // This check is necessary because baseOptionsBuilder.useGpu(); will not work on Google
             // glass.
-            //if ((new CompatibilityList()).isDelegateSupportedOnThisDevice()) {
+            if ((new CompatibilityList()).isDelegateSupportedOnThisDevice()) {
                 baseOptionsBuilder.useGpu();
-            //}
+            }
             
             optionsBuilder.setBaseOptions(baseOptionsBuilder.build());
 
@@ -96,13 +96,26 @@ public class Pipeline {
         long start = SystemClock.uptimeMillis();
         long startEnergy = batteryManager.getLongProperty(
                 BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER);
+
+        int total = 0;
+
         for (File classDir : testImages.listFiles()) {
             String correctClass = classDir.getName();
             for (File imageFile : classDir.listFiles()) {
-                if (classifyImage(imageFile.getPath(), correctClass)) {
-                    good++;
-                } else {
-                    bad++;
+//                if (classifyImage(imageFile.getPath(), correctClass)) {
+//                    good++;
+//                } else {
+//                    bad++;
+//                }
+                try {
+                    Bitmap image = BitmapFactory.decodeFile(imageFile.getPath());
+                    ImageProcessor imageProcessor = (new ImageProcessor.Builder()).build();
+                    TensorImage tensorImage = imageProcessor.process(TensorImage.fromBitmap(image));
+                    System.out.println(tensorImage.hashCode());
+
+                    Thread.sleep(400);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
 
                 count++;
@@ -116,7 +129,7 @@ public class Pipeline {
                     System.out.println("energy change: " + (endEnergy - startEnergy) + "nWh");
 
                     try {
-                        fos.write(("time change: " + (end - start) + "s energy change: " + (startEnergy - endEnergy) + " nWh\n").getBytes());
+                        fos.write(("time change: " + (end - start) + "ms energy change: " + (startEnergy - endEnergy) + " nWh\n").getBytes());
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
@@ -128,15 +141,20 @@ public class Pipeline {
                     startEnergy = batteryManager.getLongProperty(
                             BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER);
                 }
+
+                if (total == 700) {
+                    try {
+                        fos.write(("Good: " + good + " Bad: " + bad + "\n").getBytes());
+                        fos.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    System.out.println("Good: " + good + " Bad: " + bad);
+                    return;
+                }
+                total++;
             }
         }
-        try {
-            fos.write(("Good: " + good + " Bad: " + bad + "\n").getBytes());
-            fos.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        System.out.println("Good: " + good + " Bad: " + bad);
     }
 
     private boolean classifyImage(String imagePath, String correctClass) {
