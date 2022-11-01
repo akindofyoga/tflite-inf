@@ -28,9 +28,13 @@ import java.util.List;
 public class Pipeline {
 
     ImageClassifier imageClassifier = null;
-    ObjectDetector objectDetector = null;
+    ObjectDetector objectDetector = null
+            ;
+    final private String odname;
 
-    public Pipeline() {
+    public Pipeline(String odname) {
+        this.odname = odname;
+
         try {
             ImageClassifier.ImageClassifierOptions.Builder optionsBuilder =
                     ImageClassifier.ImageClassifierOptions.builder()
@@ -62,13 +66,13 @@ public class Pipeline {
 
             // This check is necessary because baseOptionsBuilder.useGpu(); will not work on Google
             // glass.
-            if ((new CompatibilityList()).isDelegateSupportedOnThisDevice()) {
-                baseOptionsBuilder.useGpu();
-            }
+            //if ((new CompatibilityList()).isDelegateSupportedOnThisDevice()) {
+                //baseOptionsBuilder.useGpu();
+            //}
             
             optionsBuilder.setBaseOptions(baseOptionsBuilder.build());
 
-            File modelFile = new File("/sdcard/models/stirling/ed0.tflite");
+            File modelFile = new File("/sdcard/models/stirling/" + odname);
             objectDetector = ObjectDetector.createFromFileAndOptions(
                     modelFile, optionsBuilder.build());
         } catch (IOException e) {
@@ -82,7 +86,7 @@ public class Pipeline {
 
         FileOutputStream fos = null;
         try {
-            fos = new FileOutputStream("/sdcard/output/stirling/" + System.currentTimeMillis() + ".txt");
+            fos = new FileOutputStream("/sdcard/output/stirling/" + odname + "_" + System.currentTimeMillis() + ".txt");
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
@@ -102,21 +106,13 @@ public class Pipeline {
         for (File classDir : testImages.listFiles()) {
             String correctClass = classDir.getName();
             for (File imageFile : classDir.listFiles()) {
-//                if (classifyImage(imageFile.getPath(), correctClass)) {
-//                    good++;
-//                } else {
-//                    bad++;
-//                }
+                if (classifyImage(imageFile.getPath(), correctClass)) {
+                    good++;
+                } else {
+                    bad++;
+                }
 
-                Bitmap image = BitmapFactory.decodeFile(imageFile.getPath());
-                ImageProcessor imageProcessor = (new ImageProcessor.Builder()).build();
-                TensorImage tensorImage = imageProcessor.process(TensorImage.fromBitmap(image));
-                System.out.println(tensorImage.hashCode());
-
-
-
-                count++;
-                if (count == 200) {
+                if (count == 20) {
                     long end = SystemClock.uptimeMillis();
                     System.out.println("time change" + (end - start) + "ms");
 
@@ -139,7 +135,7 @@ public class Pipeline {
                             BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER);
                 }
 
-                if (total == 700) {
+                if (total == 2000) {
                     try {
                         fos.write(("Good: " + good + " Bad: " + bad + "\n").getBytes());
                         fos.close();
@@ -150,6 +146,7 @@ public class Pipeline {
                     return;
                 }
                 total++;
+                count++;
             }
         }
     }

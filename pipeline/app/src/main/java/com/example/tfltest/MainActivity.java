@@ -109,39 +109,51 @@ public class MainActivity extends AppCompatActivity {
         pool.execute(() -> {
             BatteryManager batteryManager =
                     (BatteryManager) getSystemService(Context.BATTERY_SERVICE);
-            Pipeline pipeline = new Pipeline();
-            pipeline.runTest(batteryManager);
-            running = false;
-        });
-        pool.execute(() -> {
-            BatteryManager batteryManager =
-                    (BatteryManager) getSystemService(Context.BATTERY_SERVICE);
-            try {
-                FileOutputStream fos = new FileOutputStream("/sdcard/output/bg_thread/" + System.currentTimeMillis() + ".txt");
-                BatteryReceiver batteryReceiver = new BatteryReceiver();
-                while (running) {
-                    long start = SystemClock.uptimeMillis();
-                    IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-                    registerReceiver(batteryReceiver, intentFilter);
 
-                    long toWait = Math.max(0, ((start + 1000) - SystemClock.uptimeMillis()));
-                    Thread.sleep(toWait);
+            measureBattery("baseline", batteryManager);
 
-                    if (!running) {
-                        break;
-                    }
-                    int current = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW);
-                    int voltage = batteryReceiver.getVoltage();
-                    fos.write(("current: " + current + " voltage: " + voltage +"\n").getBytes());
-                }
-                fos.close();
-                unregisterReceiver(batteryReceiver);
-                finish();
-            } catch (InterruptedException | IOException e) {
-                e.printStackTrace();
-                    System.exit(0);
+            for (String odname : new String[] {"ed0.tflite", "ed1.tflite", "ed2.tflite"}) {
+                pool.execute(() -> {
+                    Pipeline pipeline = new Pipeline(odname);
+                    pipeline.runTest(batteryManager);
+                    running = false;
+                });
+
+                measureBattery(odname, batteryManager);
             }
+            finish();
         });
+    }
+
+    private void measureBattery(String odname, BatteryManager batteryManager) {
+        try {
+            FileOutputStream fos = new FileOutputStream(
+                    "/sdcard/output/bg_thread/" + odname + "_" +
+                            System.currentTimeMillis() + ".txt");
+            BatteryReceiver batteryReceiver = new BatteryReceiver();
+            IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+            registerReceiver(batteryReceiver, intentFilter);
+
+            int endCount = 0;
+
+            while (true) {
+                long start = SystemClock.uptimeMillis();
+
+                long toWait = Math.max(0, ((start + 100) - SystemClock.uptimeMillis()));
+                Thread.sleep(toWait);
+
+                if (!running) {
+                    break;
+                }
+                int current = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW);
+                int voltage = batteryReceiver.getVoltage();
+                fos.write(("current: " + current + " voltage: " + voltage + "\n").getBytes());
+            }
+            fos.close();
+            unregisterReceiver(batteryReceiver);
+        } catch (InterruptedException | IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private class BatteryReceiver extends BroadcastReceiver {
