@@ -28,8 +28,7 @@ import java.util.List;
 public class Pipeline {
 
     ImageClassifier imageClassifier = null;
-    ObjectDetector objectDetector = null
-            ;
+    ObjectDetector objectDetector = null;
     final private String odname;
 
     public Pipeline(String odname) {
@@ -45,7 +44,7 @@ public class Pipeline {
             
             // Works on Google Glass even though 
             // (new CompatibilityList()).isDelegateSupportedOnThisDevice() returns false.
-            baseOptionsBuilder.useGpu();
+            //baseOptionsBuilder.useGpu();
 
             optionsBuilder.setBaseOptions(baseOptionsBuilder.build());
             File modelFile = new File("/sdcard/models/stirling/r50.tflite");
@@ -114,7 +113,7 @@ public class Pipeline {
 
                 if (count == 20) {
                     long end = SystemClock.uptimeMillis();
-                    System.out.println("time change" + (end - start) + "ms");
+                    System.out.println("time change: " + (end - start) + "ms");
 
                     long endEnergy = batteryManager.getLongProperty(
                             BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER);
@@ -135,7 +134,7 @@ public class Pipeline {
                             BatteryManager.BATTERY_PROPERTY_ENERGY_COUNTER);
                 }
 
-                if (total == 2000) {
+                if (total == 120) {
                     try {
                         fos.write(("Good: " + good + " Bad: " + bad + "\n").getBytes());
                         fos.close();

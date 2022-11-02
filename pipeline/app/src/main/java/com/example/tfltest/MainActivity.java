@@ -105,15 +105,38 @@ public class MainActivity extends AppCompatActivity {
         }
 
         pool = Executors.newFixedThreadPool(2);
-        running = true;
         pool.execute(() -> {
             BatteryManager batteryManager =
                     (BatteryManager) getSystemService(Context.BATTERY_SERVICE);
 
-            measureBattery("baseline", batteryManager);
+            try {
+                FileOutputStream fos = new FileOutputStream(
+                        "/sdcard/output/bg_thread/baseline_" +
+                                System.currentTimeMillis() + ".txt");
+                BatteryReceiver batteryReceiver = new BatteryReceiver();
+                IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+                registerReceiver(batteryReceiver, intentFilter);
+
+                for (int i = 0; i < 3000; i++) {
+                    long start = SystemClock.uptimeMillis();
+
+                    long toWait = Math.max(0, ((start + 100) - SystemClock.uptimeMillis()));
+                    Thread.sleep(toWait);
+
+                    int current = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW);
+                    int voltage = batteryReceiver.getVoltage();
+                    fos.write(("current: " + current + " voltage: " + voltage + "\n").getBytes());
+                }
+                fos.close();
+                unregisterReceiver(batteryReceiver);
+            } catch (InterruptedException | IOException e) {
+                e.printStackTrace();
+            }
 
             for (String odname : new String[] {"ed0.tflite", "ed1.tflite", "ed2.tflite"}) {
+                running = true;
                 pool.execute(() -> {
+                    System.out.println("starting");
                     Pipeline pipeline = new Pipeline(odname);
                     pipeline.runTest(batteryManager);
                     running = false;
@@ -133,8 +156,6 @@ public class MainActivity extends AppCompatActivity {
             BatteryReceiver batteryReceiver = new BatteryReceiver();
             IntentFilter intentFilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
             registerReceiver(batteryReceiver, intentFilter);
-
-            int endCount = 0;
 
             while (true) {
                 long start = SystemClock.uptimeMillis();
